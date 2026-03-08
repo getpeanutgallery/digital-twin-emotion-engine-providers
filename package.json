@@ -13,7 +13,7 @@
     "generate": "node test/generate-cassettes.js"
   },
   "dependencies": {
-    "digital-twin-core": "file:../digital-twin-core"
+    "digital-twin-core": "git+ssh://git@github.com/getpeanutgallery/digital-twin-core.git#main"
   },
   "keywords": [
     "digital-twin",
