@@ -1,0 +1,27 @@
+{
+  "name": "digital-twin-emotion-engine-providers",
+  "version": "1.0.0",
+  "description": "Digital twin pack for emotion-engine AI provider tests",
+  "type": "commonjs",
+  "main": "manifest.json",
+  "files": [
+    "cassettes/",
+    "manifest.json"
+  ],
+  "scripts": {
+    "test": "node --test test/manifest.test.js",
+    "generate": "node test/generate-cassettes.js"
+  },
+  "dependencies": {
+    "digital-twin-core": "file:../digital-twin-core"
+  },
+  "keywords": [
+    "digital-twin",
+    "cassette",
+    "emotion-engine",
+    "ai-providers",
+    "testing"
+  ],
+  "author": "",
+  "license": "MIT"
+}
