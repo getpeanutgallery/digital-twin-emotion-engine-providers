@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "name": "emotion-engine-providers",
-  "description": "Digital twin cassette pack for AI provider unit tests",
+  "description": "Canonical offline replay cassette pack for emotion-engine AI provider tests",
   "defaultCassetteId": "providers",
   "cassettes": {
     "providers": "cassettes/providers.json"

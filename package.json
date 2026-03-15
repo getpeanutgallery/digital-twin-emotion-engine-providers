@@ -1,7 +1,7 @@
 {
   "name": "digital-twin-emotion-engine-providers",
   "version": "1.0.0",
-  "description": "Digital twin pack for emotion-engine AI provider tests",
+  "description": "Canonical digital twin cassette pack for emotion-engine provider replay tests",
   "type": "commonjs",
   "main": "manifest.json",
   "files": [
@@ -9,8 +9,7 @@
     "manifest.json"
   ],
   "scripts": {
-    "test": "node --test test/manifest.test.js",
-    "generate": "node test/generate-cassettes.js"
+    "test": "node --test test/manifest.test.js"
   },
   "dependencies": {
     "digital-twin-core": "git+ssh://git@github.com/getpeanutgallery/digital-twin-core.git#main"

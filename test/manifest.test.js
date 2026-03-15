@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
  * Test suite for digital-twin-emotion-engine-providers twin pack
- * 
- * Validates the pack structure, manifest, and cassette integrity.
+ *
+ * Validates the pack structure, manifest, cassette integrity, and publishable contents.
  */
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
-// Test results tracking
 let passed = 0;
 let failed = 0;
 
@@ -33,72 +33,76 @@ function assert(condition, message) {
 console.log('Digital Twin Emotion Engine Providers - Pack Tests\n');
 console.log('================================================\n');
 
-// Get the directory of this test file
 const packRoot = path.join(__dirname, '..');
 
-// Test 1: Manifest exists and is valid JSON
+function loadManifest() {
+  return JSON.parse(fs.readFileSync(path.join(packRoot, 'manifest.json'), 'utf8'));
+}
+
+function loadCassette() {
+  return JSON.parse(fs.readFileSync(path.join(packRoot, 'cassettes/providers.json'), 'utf8'));
+}
+
 test('manifest.json exists and is valid JSON', () => {
   const manifestPath = path.join(packRoot, 'manifest.json');
   assert(fs.existsSync(manifestPath), 'manifest.json not found');
-  
-  const content = fs.readFileSync(manifestPath, 'utf8');
-  const manifest = JSON.parse(content);
-  
+
+  const manifest = loadManifest();
   assert(manifest.version === '1.0', 'Missing or invalid version');
   assert(manifest.name === 'emotion-engine-providers', 'Invalid name');
   assert(manifest.defaultCassetteId === 'providers', 'Missing defaultCassetteId');
   assert(manifest.cassettes && manifest.cassettes.providers, 'Missing providers cassette mapping');
 });
 
-// Test 2: Cassette file exists and is valid JSON
+test('manifest-declared cassette files exist', () => {
+  const manifest = loadManifest();
+  for (const [cassetteId, cassettePath] of Object.entries(manifest.cassettes || {})) {
+    const absoluteCassettePath = path.join(packRoot, cassettePath);
+    assert(fs.existsSync(absoluteCassettePath), `Manifest cassette missing on disk: ${cassetteId} -> ${cassettePath}`);
+  }
+});
+
 test('cassettes/providers.json exists and is valid JSON', () => {
   const cassettePath = path.join(packRoot, 'cassettes/providers.json');
   assert(fs.existsSync(cassettePath), 'cassettes/providers.json not found');
-  
-  const content = fs.readFileSync(cassettePath, 'utf8');
-  const cassette = JSON.parse(content);
-  
+
+  const cassette = loadCassette();
   assert(cassette.version === '1.0', 'Missing or invalid cassette version');
   assert(cassette.meta, 'Missing meta');
   assert(cassette.interactions && Array.isArray(cassette.interactions), 'Missing or invalid interactions');
-  assert(cassette.interactions.length >= 4, 'Expected at least 4 interactions for all providers');
+  assert(cassette.interactions.length >= 5, 'Expected at least 5 interactions including duplicate OpenRouter coverage');
 });
 
-// Test 3: All required providers are present
 test('cassette contains interactions for all required providers', () => {
-  const cassettePath = path.join(packRoot, 'cassettes/providers.json');
-  const cassette = JSON.parse(fs.readFileSync(cassettePath, 'utf8'));
-  
+  const cassette = loadCassette();
+
   const providers = {
-    openrouter: false,
-    anthropic: false,
-    openai: false,
-    gemini: false
+    openrouter: 0,
+    anthropic: 0,
+    openai: 0,
+    gemini: 0
   };
-  
+
   for (const interaction of cassette.interactions) {
-    const body = JSON.parse(interaction.request.body);
     const url = interaction.request.url;
-    
-    if (url.includes('openrouter.ai')) providers.openrouter = true;
-    if (url.includes('anthropic.com')) providers.anthropic = true;
-    if (url.includes('openai.com')) providers.openai = true;
-    if (url.includes('generativelanguage.googleapis.com')) providers.gemini = true;
+
+    if (url.includes('openrouter.ai')) providers.openrouter++;
+    if (url.includes('anthropic.com')) providers.anthropic++;
+    if (url.includes('openai.com')) providers.openai++;
+    if (url.includes('generativelanguage.googleapis.com')) providers.gemini++;
   }
-  
-  assert(providers.openrouter, 'Missing OpenRouter interaction');
-  assert(providers.anthropic, 'Missing Anthropic interaction');
-  assert(providers.openai, 'Missing OpenAI interaction');
-  assert(providers.gemini, 'Missing Gemini interaction');
+
+  assert(providers.openrouter >= 2, 'Expected duplicate OpenRouter interactions for sequential replay');
+  assert(providers.anthropic >= 1, 'Missing Anthropic interaction');
+  assert(providers.openai >= 1, 'Missing OpenAI interaction');
+  assert(providers.gemini >= 1, 'Missing Gemini interaction');
 });
 
-// Test 4: Interactions have required fields
 test('all interactions have required fields', () => {
-  const cassettePath = path.join(packRoot, 'cassettes/providers.json');
-  const cassette = JSON.parse(fs.readFileSync(cassettePath, 'utf8'));
-  
+  const cassette = loadCassette();
+
   for (const interaction of cassette.interactions) {
-    assert(interaction.id, `Interaction missing id`);
+    assert(interaction.id, 'Interaction missing id');
     assert(interaction.request, `Interaction ${interaction.id} missing request`);
     assert(interaction.request.method, `Interaction ${interaction.id} request missing method`);
     assert(interaction.request.url, `Interaction ${interaction.id} request missing url`);
@@ -106,10 +110,22 @@ test('all interactions have required fields', () => {
     assert(interaction.response, `Interaction ${interaction.id} missing response`);
     assert(interaction.response.content !== undefined, `Interaction ${interaction.id} response missing content`);
     assert(interaction.response.usage, `Interaction ${interaction.id} response missing usage`);
+    assert(interaction.interactionId, `Interaction ${interaction.id} missing interactionId`);
   }
 });
 
-// Summary
+test('npm pack dry-run includes the cassette payload', () => {
+  const output = execSync('npm pack --dry-run --json', {
+    cwd: packRoot,
+    encoding: 'utf8'
+  });
+  const packInfo = JSON.parse(output)[0];
+  const files = packInfo.files.map((file) => file.path);
+
+  assert(files.includes('cassettes/providers.json'), 'Packed tarball is missing cassettes/providers.json');
+  assert(files.includes('manifest.json'), 'Packed tarball is missing manifest.json');
+});
+
 console.log('\n================================================');
 console.log(`Tests: ${passed + failed} total`);
 console.log(`Passed: ${passed}`);
